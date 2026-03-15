@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { AlertTriangle, Clock3, WalletCards } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -46,13 +46,10 @@ export function WorkerDashboardPanel({
   const shopBalance = activeShift ? balances.shopCash : 0;
   const flexyBalance = activeShift ? balances.flexyCash : 0;
 
-  const sourceLabel = useMemo(() => {
-    if (source === "cache") {
-      return "أنت ترى آخر نسخة محفوظة محليًا إلى حين عودة الاتصال.";
-    }
-
-    return "الواجهة جاهزة للعمل اليومي مع تحديث سريع وواضح.";
-  }, [source]);
+  const sourceLabel =
+    source === "cache"
+      ? "أنت ترى آخر نسخة محفوظة محليًا إلى حين عودة الاتصال."
+      : "الواجهة جاهزة للعمل اليومي مع تحديث سريع وواضح.";
 
   return (
     <div className="space-y-4">

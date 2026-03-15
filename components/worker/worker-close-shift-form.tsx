@@ -11,7 +11,7 @@ import { updateWorkerDashboardCache } from "@/offline/worker-cache";
 import { formatCurrency } from "@/lib/utils/format";
 import { calculateProfitSummary } from "@/lib/utils/profit";
 import { closeShiftSchema, type CloseShiftFormValues } from "@/lib/validators/shift";
-import type { AppSettingsRecord, ProfitSummary, ShiftRecord, TransactionRecord } from "@/types";
+import type { AppSettingsRecord, ShiftRecord, TransactionRecord } from "@/types";
 
 export function WorkerCloseShiftForm({
   workerId,
@@ -61,9 +61,6 @@ export function WorkerCloseShiftForm({
         payload: values,
         endpoint: `/api/worker/shifts/${shift.id}/close`
       });
-
-      const serverSummary = !result.queued ? ((result.data as { summary?: ProfitSummary } | null)?.summary ?? null) : null;
-      const summary = serverSummary ?? preview;
 
       await updateWorkerDashboardCache(workerId, (snapshot) => {
         if (!snapshot) {

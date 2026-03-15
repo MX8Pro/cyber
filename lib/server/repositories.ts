@@ -64,6 +64,10 @@ function sortByCreatedAtAsc<T extends { createdAt: string }>(items: T[]) {
   return [...items].sort((left, right) => left.createdAt.localeCompare(right.createdAt));
 }
 
+function mapDocData<T>(doc: FirebaseFirestore.QueryDocumentSnapshot): T {
+  return doc.data() as T;
+}
+
 function buildDefaultSettings(updatedAt = nowIso()): AppSettingsRecord {
   return {
     id: APP_SETTINGS_DOC_ID,
@@ -298,7 +302,7 @@ export async function createInitialAdmin(input: {
 
 export async function getPublicWorkerLoginList(): Promise<WorkerListItem[]> {
   const snapshot = await workersCollection().orderBy("displayName", "asc").get();
-  const workers = snapshot.docs.map((doc: any) => doc.data() as WorkerRecord);
+  const workers = snapshot.docs.map(mapDocData<WorkerRecord>);
 
   return workers
     .filter((worker: WorkerRecord) => worker.isActive && !worker.deletedAt)
@@ -593,7 +597,7 @@ export async function markWorkerLogin(authUid: string) {
 
 export async function listWorkersForAdmin() {
   const snapshot = await workersCollection().orderBy("createdAt", "desc").get();
-  return snapshot.docs.map((doc: any) => doc.data() as WorkerRecord);
+  return snapshot.docs.map(mapDocData<WorkerRecord>);
 }
 
 export async function getAppSettings(): Promise<AppSettingsRecord> {
@@ -763,8 +767,8 @@ export async function getWorkerDashboard(workerId: string) {
     shiftsCollection().where("workerId", "==", workerId).get(),
     transactionsCollection().where("workerId", "==", workerId).get()
   ]);
-  const shifts = shiftSnapshot.docs.map((doc: any) => doc.data() as ShiftRecord);
-  const transactions = recentTransactionsSnapshot.docs.map((doc: any) => doc.data() as TransactionRecord);
+  const shifts = shiftSnapshot.docs.map(mapDocData<ShiftRecord>);
+  const transactions = recentTransactionsSnapshot.docs.map(mapDocData<TransactionRecord>);
 
   const activeShift = shifts.find((shift: ShiftRecord) => shift.status === "open");
 
@@ -786,19 +790,19 @@ export async function listAdminDashboardSummary() {
     getAdminDb().collection("auditLogs").orderBy("createdAt", "desc").limit(10).get()
   ]);
 
-  const workers = workersSnapshot.docs.map((doc: any) => doc.data() as WorkerRecord);
-  const shifts = shiftsSnapshot.docs.map((doc: any) => doc.data() as ShiftRecord);
+  const workers = workersSnapshot.docs.map(mapDocData<WorkerRecord>);
+  const shifts = shiftsSnapshot.docs.map(mapDocData<ShiftRecord>);
 
   return {
     workers,
     shifts,
-    auditLogs: auditSnapshot.docs.map((doc: any) => doc.data() as AuditLogRecord)
+    auditLogs: auditSnapshot.docs.map(mapDocData<AuditLogRecord>)
   };
 }
 
 export async function listShiftsForAdmin() {
   const snapshot = await shiftsCollection().orderBy("createdAt", "desc").limit(100).get();
-  return snapshot.docs.map((doc: any) => doc.data() as ShiftRecord);
+  return snapshot.docs.map(mapDocData<ShiftRecord>);
 }
 
 export async function resolveShiftReview(shiftId: string, session: SessionUser) {
@@ -827,7 +831,7 @@ export async function resolveShiftReview(shiftId: string, session: SessionUser) 
 
 export async function listClosedShiftReports() {
   const snapshot = await shiftsCollection().orderBy("createdAt", "desc").get();
-  const shifts = snapshot.docs.map((doc: any) => doc.data() as ShiftRecord);
+  const shifts = snapshot.docs.map(mapDocData<ShiftRecord>);
   return shifts.filter((shift: ShiftRecord) => shift.status === "closed");
 }
 
@@ -902,7 +906,7 @@ export async function openShiftForWorker(input: {
 
 export async function getActiveShiftForWorker(workerId: string) {
   const snapshot = await shiftsCollection().where("workerId", "==", workerId).get();
-  const shifts = snapshot.docs.map((doc: any) => doc.data() as ShiftRecord);
+  const shifts = snapshot.docs.map(mapDocData<ShiftRecord>);
   return shifts.find((shift: ShiftRecord) => shift.status === "open");
 }
 
@@ -957,7 +961,7 @@ export async function getShiftWithTransactions(shiftId: string, workerId?: strin
   return {
     shift,
     transactions: sortByCreatedAtAsc<TransactionRecord>(
-      transactionsSnapshot.docs.map((doc: any) => doc.data() as TransactionRecord)
+      transactionsSnapshot.docs.map(mapDocData<TransactionRecord>)
     )
   };
 }
