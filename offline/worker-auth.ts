@@ -85,6 +85,48 @@ export async function getOrCreateBrowserId() {
   return browserId;
 }
 
+function buildOfflineSession(input: {
+  workerId: string;
+  displayName: string;
+  color?: string;
+  icon?: string;
+  payload: TrustedWorkerDevicePayload;
+  activatedAt: string;
+}): OfflineWorkerSession {
+  return {
+    id: OFFLINE_SESSION_KEY,
+    workerId: input.workerId,
+    displayName: input.displayName,
+    color: input.color,
+    icon: input.icon,
+    deviceId: input.payload.deviceId,
+    browserId: input.payload.browserId,
+    deviceSecret: input.payload.deviceSecret,
+    activatedAt: input.activatedAt,
+    expiresAt: input.payload.expiresAt,
+    lastUnlockedAt: new Date().toISOString()
+  };
+}
+
+export async function activateOfflineSessionFromTrustedDevice(input: {
+  worker: WorkerListItem;
+  payload: TrustedWorkerDevicePayload;
+  activatedAt?: string;
+}) {
+  const session = buildOfflineSession({
+    workerId: input.worker.id,
+    displayName: input.worker.displayName,
+    color: input.worker.color,
+    icon: input.worker.icon,
+    payload: input.payload,
+    activatedAt: input.activatedAt ?? new Date().toISOString()
+  });
+
+  await putOfflineWorkerSession(session);
+  emitWorkerAuthEvent(input.worker.id);
+  return session;
+}
+
 export async function registerTrustedWorkerDevice(input: {
   worker: WorkerListItem;
   payload: TrustedWorkerDevicePayload;
@@ -187,19 +229,14 @@ export async function unlockOfflineWorkerSession(workerId: string, password: str
         continue;
       }
 
-      const session: OfflineWorkerSession = {
-        id: OFFLINE_SESSION_KEY,
+      const session = buildOfflineSession({
         workerId,
         displayName: record.displayName,
         color: record.color,
         icon: record.icon,
-        deviceId: payload.deviceId,
-        browserId: payload.browserId,
-        deviceSecret: payload.deviceSecret,
-        activatedAt: record.lastActivatedAt,
-        expiresAt: payload.expiresAt,
-        lastUnlockedAt: new Date().toISOString()
-      };
+        payload,
+        activatedAt: record.lastActivatedAt
+      });
 
       await putOfflineWorkerSession(session);
       emitWorkerAuthEvent(workerId);

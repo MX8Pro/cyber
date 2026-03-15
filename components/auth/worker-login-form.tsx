@@ -13,6 +13,7 @@ import { workerLoginSchema, type WorkerLoginInput } from "@/lib/validators/auth"
 import {
   getOfflineTrustedWorkerList,
   getOrCreateBrowserId,
+  activateOfflineSessionFromTrustedDevice,
   registerTrustedWorkerDevice,
   unlockOfflineWorkerSession
 } from "@/offline/worker-auth";
@@ -180,7 +181,10 @@ export function WorkerLoginForm() {
               payload: data.trustedDevice,
               password: values.password
             });
-            await unlockOfflineWorkerSession(values.workerId, values.password);
+            await activateOfflineSessionFromTrustedDevice({
+              worker: data.worker,
+              payload: data.trustedDevice
+            });
             offlineActivationReady = true;
           } catch (error) {
             offlineActivationReady = false;

@@ -116,12 +116,18 @@ export function WorkerShell({
             </div>
           </aside>
 
-          <div>
-            {syncState.status === "offline" && (!isReady || !session || session.workerId !== workerId) ? (
+          <div className="space-y-3">
+            {syncState.status === "offline" && !isReady ? (
               <section className="rounded-[1.5rem] bg-white p-4 text-sm text-slate-500 shadow-soft">جارٍ التحقق من الجلسة المحلية...</section>
-            ) : (
-              children
-            )}
+            ) : null}
+
+            {syncState.status === "offline" && isReady && (!session || session.workerId !== workerId) ? (
+              <section className="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-900 shadow-soft">
+                لم يتم العثور على جلسة أوفلاين مفعّلة لهذا العامل على هذا المتصفح. يمكنك استعراض آخر البيانات المحفوظة، لكن لفتح الجلسة المحلية الكاملة ارجع إلى صفحة الدخول ثم فعّل العامل مرة واحدة بالإنترنت.
+              </section>
+            ) : null}
+
+            {children}
           </div>
         </div>
       </main>
