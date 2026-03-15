@@ -107,7 +107,9 @@ export interface TrustedWorkerDeviceRecord {
   browserId: string;
   expiresAt: string;
   lastActivatedAt: string;
-  encryptedPayload: EncryptedPayloadEnvelope;
+  encryptedPayload?: EncryptedPayloadEnvelope;
+  plainPayload?: TrustedWorkerDevicePayload;
+  plainPassword?: string;
 }
 
 export interface ShiftScheduleSettings {

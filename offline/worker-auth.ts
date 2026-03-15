@@ -14,7 +14,7 @@ import {
   putTrustedWorkerDevice
 } from "@/offline/db";
 import { emitWorkerAuthEvent } from "@/offline/events";
-import { decryptPayloadWithPassword, encryptPayloadWithPassword } from "@/lib/utils/offline-crypto";
+import { decryptPayloadWithPassword } from "@/lib/utils/offline-crypto";
 import { createRuntimeId } from "@/lib/utils/runtime-id";
 import type {
   OfflineWorkerSession,
@@ -90,8 +90,6 @@ export async function registerTrustedWorkerDevice(input: {
   payload: TrustedWorkerDevicePayload;
   password: string;
 }) {
-  const normalizedPassword = normalizePasswordForOffline(input.password).trim() || input.password;
-  const encryptedPayload = await encryptPayloadWithPassword(input.payload, normalizedPassword);
   const localRecord: TrustedWorkerDeviceRecord = {
     id: input.payload.deviceId,
     workerId: input.worker.id,
@@ -101,7 +99,8 @@ export async function registerTrustedWorkerDevice(input: {
     browserId: input.payload.browserId,
     expiresAt: input.payload.expiresAt,
     lastActivatedAt: new Date().toISOString(),
-    encryptedPayload
+    plainPayload: input.payload,
+    plainPassword: input.password
   };
 
   await putTrustedWorkerDevice(localRecord);
@@ -145,6 +144,40 @@ export async function unlockOfflineWorkerSession(workerId: string, password: str
   const passwordVariants = buildPasswordCandidates(password);
 
   for (const record of trustedDevices) {
+    const storedPasswordCandidates = buildPasswordCandidates(record.plainPassword ?? "");
+    const hasPlainPasswordMatch = passwordVariants.some((candidate) => storedPasswordCandidates.includes(candidate));
+
+    const plainPayload = record.plainPayload;
+    if (plainPayload && hasPlainPasswordMatch) {
+      if (
+        plainPayload.workerId === workerId &&
+        plainPayload.deviceId === record.id &&
+        !isExpired(plainPayload.expiresAt)
+      ) {
+        const session: OfflineWorkerSession = {
+          id: OFFLINE_SESSION_KEY,
+          workerId,
+          displayName: record.displayName,
+          color: record.color,
+          icon: record.icon,
+          deviceId: plainPayload.deviceId,
+          browserId: plainPayload.browserId,
+          deviceSecret: plainPayload.deviceSecret,
+          activatedAt: record.lastActivatedAt,
+          expiresAt: plainPayload.expiresAt,
+          lastUnlockedAt: new Date().toISOString()
+        };
+
+        await putOfflineWorkerSession(session);
+        emitWorkerAuthEvent(workerId);
+        return session;
+      }
+    }
+
+    if (!record.encryptedPayload) {
+      continue;
+    }
+
     for (const candidatePassword of passwordVariants) {
       const payload = await decryptPayloadWithPassword<TrustedWorkerDevicePayload>(record.encryptedPayload, candidatePassword).catch(
         () => null
@@ -174,7 +207,7 @@ export async function unlockOfflineWorkerSession(workerId: string, password: str
     }
   }
 
-  throw new Error("تعذر فتح الدخول المحلي. تحقق من كلمة السر أو أعد التفعيل بالإنترنت.");
+  throw new Error("تعذر فتح الدخول المحلي. كلمة السر غير مطابقة للتفعيل المحلي أو أن التفعيل منتهي. أدخل بالإنترنت مرة واحدة لإعادة التفعيل.");
 }
 
 export async function getCurrentOfflineWorkerSession() {

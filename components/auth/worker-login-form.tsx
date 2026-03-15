@@ -170,6 +170,7 @@ export function WorkerLoginForm() {
 
         const data = (await response.json()) as WorkerLoginResponse;
         let offlineActivationReady = false;
+        let offlineActivationError: string | null = null;
 
         if (data.trustedDevice) {
           try {
@@ -180,15 +181,16 @@ export function WorkerLoginForm() {
             });
             await unlockOfflineWorkerSession(values.workerId, values.password);
             offlineActivationReady = true;
-          } catch {
+          } catch (error) {
             offlineActivationReady = false;
+            offlineActivationError = error instanceof Error ? error.message : "فشل حفظ التفعيل المحلي";
           }
         }
 
         toast.success(
           offlineActivationReady
             ? "تم تسجيل الدخول وتفعيل هذا الجهاز للعمل بدون إنترنت"
-            : "تم تسجيل الدخول، لكن التفعيل المحلي لم يكتمل على هذا الجهاز بعد"
+            : `تم تسجيل الدخول، لكن التفعيل المحلي لم يكتمل: ${offlineActivationError ?? "تحقق من صلاحية التخزين المحلي في المتصفح"}`
         );
 
         window.location.assign("/worker/dashboard");
@@ -350,7 +352,7 @@ export function WorkerLoginForm() {
         <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           <div className="flex items-start gap-2">
             <ShieldCheck className="mt-0.5 h-4 w-4 text-brand" />
-            <p>لا يتم حفظ كلمة السر الخام داخل المتصفح. الذي يُحفَظ هو تفعيل مشفر لهذا الجهاز فقط ولمدة محدودة.</p>
+            <p>يتم حفظ تفعيل محلي لهذا الجهاز داخل المتصفح لتشغيل وضع الأوفلاين. إذا مسحت بيانات المتصفح أو استخدمت متصفحًا آخر ستحتاج إعادة التفعيل بالإنترنت.</p>
           </div>
         </section>
 
