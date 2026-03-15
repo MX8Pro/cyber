@@ -121,7 +121,7 @@ export function WorkerOpenShiftForm({
             </span>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InfoCard label="ما تركه في المحل" value={formatCurrency(openingContext.handoverShopCash ?? 0)} />
             <InfoCard label="ما تركه في الفليكسي" value={formatCurrency(openingContext.handoverFlexyCash ?? 0)} />
           </div>

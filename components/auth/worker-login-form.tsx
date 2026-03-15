@@ -207,7 +207,7 @@ export function WorkerLoginForm() {
   );
 
   return (
-    <div className="glass-panel surface-glow rise-in overflow-hidden p-5">
+    <div className="glass-panel surface-glow rise-in overflow-hidden p-4 sm:p-5 lg:p-6">
       <div className="rounded-[1.75rem] bg-[linear-gradient(135deg,#0f172a_0%,#0f766e_100%)] p-5 text-white">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
@@ -254,7 +254,7 @@ export function WorkerLoginForm() {
         </div>
       </div>
 
-      <form onSubmit={onValidSubmit} className="mt-5 space-y-5" noValidate>
+      <form onSubmit={onValidSubmit} className="mt-5 space-y-5 lg:space-y-6" noValidate>
         <section className="rounded-[1.75rem] border border-slate-200 bg-white p-4">
           <div className="mb-3 flex items-center gap-2 text-slate-900">
             <UsersRound className="h-4 w-4 text-brand" />
@@ -262,7 +262,7 @@ export function WorkerLoginForm() {
           </div>
 
           {isLoadingWorkers ? (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <SkeletonBlock className="h-24" />
               <SkeletonBlock className="h-24" />
               <SkeletonBlock className="h-24" />

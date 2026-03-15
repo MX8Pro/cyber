@@ -59,7 +59,7 @@ export function WorkerTransactionScreen({
       <section className="rounded-[1.75rem] bg-white p-5 shadow-soft">
         <h1 className="text-2xl font-bold text-slate-950">تسجيل عملية</h1>
         <p className="mt-2 text-sm leading-7 text-slate-500">واجهة سريعة جدًا لإدخال العملية أثناء العمل، مع حفظ محلي فوري عند انقطاع الإنترنت.</p>
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="rounded-2xl bg-slate-50 p-4">
             <p className="text-sm text-slate-500">المحل الآن</p>
             <p className="mt-2 text-lg font-bold text-slate-950">{formatCurrency(balances.shopCash)}</p>

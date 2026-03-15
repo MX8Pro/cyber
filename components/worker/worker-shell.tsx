@@ -50,9 +50,9 @@ export function WorkerShell({
           : "يوجد خطأ مزامنة";
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eefbf7_100%)] pb-24">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eefbf7_100%)] pb-24 lg:pb-8">
       <header className="sticky top-0 z-10 border-b border-white/70 bg-white/90 backdrop-blur">
-        <div className="mx-auto max-w-xl px-4 py-4">
+        <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs text-slate-500">واجهة العامل</p>
@@ -89,16 +89,45 @@ export function WorkerShell({
         </div>
       </header>
 
-      <main className="mx-auto max-w-xl px-4 py-5">
-        {syncState.status === "offline" && (!isReady || !session || session.workerId !== workerId) ? (
-          <section className="rounded-[1.5rem] bg-white p-4 text-sm text-slate-500 shadow-soft">جارٍ التحقق من الجلسة المحلية...</section>
-        ) : (
-          children
-        )}
+      <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6">
+        <div className="grid gap-5 lg:grid-cols-[230px_minmax(0,1fr)] lg:items-start">
+          <aside className="hidden lg:block">
+            <div className="sticky top-28 rounded-[1.75rem] border border-slate-200 bg-white p-3 shadow-soft">
+              <p className="px-3 pb-2 text-xs font-semibold text-slate-500">التنقل السريع</p>
+              <div className="space-y-2">
+                {links.map((link) => {
+                  const Icon = link.icon;
+                  const active = pathname === link.href;
+                  return (
+                    <Link
+                      key={`desktop-${link.href}`}
+                      href={link.href}
+                      className={cn(
+                        "flex items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium transition",
+                        active ? "bg-brand text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {link.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </aside>
+
+          <div>
+            {syncState.status === "offline" && (!isReady || !session || session.workerId !== workerId) ? (
+              <section className="rounded-[1.5rem] bg-white p-4 text-sm text-slate-500 shadow-soft">جارٍ التحقق من الجلسة المحلية...</section>
+            ) : (
+              children
+            )}
+          </div>
+        </div>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto grid max-w-xl grid-cols-3 gap-2 px-4 py-3">
+      <nav className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-3 gap-2 px-4 py-3 sm:px-6">
           {links.map((link) => {
             const Icon = link.icon;
             const active = pathname === link.href;

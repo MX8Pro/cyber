@@ -102,7 +102,7 @@ export function WorkerDashboardPanel({
             </span>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Metric title="أموال المحل" value={formatCurrency(openingContext.handoverShopCash ?? 0)} />
             <Metric title="أموال الفليكسي" value={formatCurrency(openingContext.handoverFlexyCash ?? 0)} />
           </div>
@@ -116,12 +116,12 @@ export function WorkerDashboardPanel({
         </section>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Metric title="أموال المحل" value={formatCurrency(shopBalance)} />
         <Metric title="أموال الفليكسي" value={formatCurrency(flexyBalance)} />
       </div>
 
-      <div className="grid gap-3">
+      <div className="grid gap-3 lg:grid-cols-3">
         <ActionLink href="/worker/shifts/open" variant="primary">
           استلام المناوبة
         </ActionLink>

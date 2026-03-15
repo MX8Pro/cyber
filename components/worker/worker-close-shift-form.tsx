@@ -97,7 +97,7 @@ export function WorkerCloseShiftForm({
     <div className="space-y-4">
       <section className="rounded-[1.75rem] bg-white p-5 shadow-soft">
         <h2 className="text-lg font-bold text-slate-900">الرصيد الذي وجدته في البداية</h2>
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <InfoCard label="أموال المحل" value={formatCurrency(shift.opening.openingShopCash)} />
           <InfoCard label="أموال الفليكسي" value={formatCurrency(shift.opening.openingFlexyCash)} />
         </div>
