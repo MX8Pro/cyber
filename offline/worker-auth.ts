@@ -27,6 +27,40 @@ function isExpired(isoDate: string) {
   return new Date(isoDate).getTime() <= Date.now();
 }
 
+const INVISIBLE_PASSWORD_CHARS_REGEX = /[​-‏‪-‮⁦-⁩﻿]/g;
+const ARABIC_INDIC_DIGITS = "٠١٢٣٤٥٦٧٨٩";
+const EXTENDED_ARABIC_INDIC_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
+
+function normalizePasswordForOffline(password: string) {
+  let normalized = password.normalize("NFKC").replace(INVISIBLE_PASSWORD_CHARS_REGEX, "");
+
+  normalized = normalized
+    .split("")
+    .map((char) => {
+      const arabicIndex = ARABIC_INDIC_DIGITS.indexOf(char);
+      if (arabicIndex >= 0) {
+        return String(arabicIndex);
+      }
+
+      const extendedArabicIndex = EXTENDED_ARABIC_INDIC_DIGITS.indexOf(char);
+      if (extendedArabicIndex >= 0) {
+        return String(extendedArabicIndex);
+      }
+
+      return char;
+    })
+    .join("");
+
+  return normalized;
+}
+
+function buildPasswordCandidates(password: string) {
+  const normalizedPassword = normalizePasswordForOffline(password);
+  const candidates = [password, password.trim(), normalizedPassword, normalizedPassword.trim()];
+
+  return Array.from(new Set(candidates.filter(Boolean)));
+}
+
 function pickLatestTrustedRecords(records: TrustedWorkerDeviceRecord[]) {
   const byWorker = new Map<string, TrustedWorkerDeviceRecord>();
 
@@ -56,7 +90,8 @@ export async function registerTrustedWorkerDevice(input: {
   payload: TrustedWorkerDevicePayload;
   password: string;
 }) {
-  const encryptedPayload = await encryptPayloadWithPassword(input.payload, input.password);
+  const normalizedPassword = normalizePasswordForOffline(input.password).trim() || input.password;
+  const encryptedPayload = await encryptPayloadWithPassword(input.payload, normalizedPassword);
   const localRecord: TrustedWorkerDeviceRecord = {
     id: input.payload.deviceId,
     workerId: input.worker.id,
@@ -107,7 +142,7 @@ export async function unlockOfflineWorkerSession(workerId: string, password: str
     throw new Error("هذا العامل غير مفعّل للعمل بدون إنترنت على هذا الجهاز.");
   }
 
-  const passwordVariants = password.trim() && password.trim() !== password ? [password, password.trim()] : [password];
+  const passwordVariants = buildPasswordCandidates(password);
 
   for (const record of trustedDevices) {
     for (const candidatePassword of passwordVariants) {
