@@ -153,7 +153,7 @@ firestore/*                    Security Rules + Indexes
 محليًا في المتصفح:
 
 - طابور عمليات offline فقط
-- ضمن IndexedDB
+- ضمن IndexedDB (ومع fallback تلقائي إلى LocalStorage إذا IndexedDB غير متاح في المتصفح)
 - scoped حسب `workerId`
 - يُمسح عند تسجيل الخروج
 - لا يحتوي أسرار Telegram
@@ -205,7 +205,7 @@ firestore/*                    Security Rules + Indexes
 
 - **تم تسجيل الدخول محليًا من متصفح مختلف**
   - الحل: أعد التفعيل بالإنترنت من نفس المتصفح الذي ستعمل به.
-- **تم مسح بيانات المتصفح (IndexedDB / Site data)**
+- **تم مسح بيانات المتصفح (IndexedDB / LocalStorage / Site data)**
   - الحل: أعد الدخول بالإنترنت لتوليد تفعيل جديد.
 - **الدخول في وضع Incognito/Private**
   - الحل: استخدم نافذة عادية.

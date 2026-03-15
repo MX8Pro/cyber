@@ -40,6 +40,8 @@ export async function POST(request: Request) {
     await markWorkerLogin(decoded.uid);
 
     let trustedDevice = null;
+    let trustedDeviceError: string | null = null;
+
     if (input.browserId) {
       try {
         trustedDevice = await issueTrustedWorkerDevice({
@@ -48,8 +50,11 @@ export async function POST(request: Request) {
           userAgent: hdrs.get("user-agent") ?? undefined
         });
       } catch (error) {
+        trustedDeviceError = "SERVER_ACTIVATION_FAILED";
         console.error("trusted device activation failed", error);
       }
+    } else {
+      trustedDeviceError = "BROWSER_ID_MISSING";
     }
 
     await sendConfiguredTelegramNotification(
@@ -71,7 +76,8 @@ export async function POST(request: Request) {
         color: worker.color,
         icon: worker.icon
       },
-      trustedDevice
+      trustedDevice,
+      trustedDeviceError
     });
   } catch (error) {
     console.error("worker login failed", error);

@@ -23,6 +23,7 @@ interface WorkerLoginResponse {
   ok: true;
   worker: WorkerListItem;
   trustedDevice: TrustedWorkerDevicePayload | null;
+  trustedDeviceError?: "SERVER_ACTIVATION_FAILED" | "BROWSER_ID_MISSING" | null;
 }
 
 export function WorkerLoginForm() {
@@ -187,10 +188,17 @@ export function WorkerLoginForm() {
           }
         }
 
+        const serverActivationHint =
+          data.trustedDeviceError === "BROWSER_ID_MISSING"
+            ? "فشل توليد معرف الجهاز المحلي. تحقق من سماح المتصفح بالتخزين المحلي."
+            : data.trustedDeviceError === "SERVER_ACTIVATION_FAILED"
+              ? "الخادم لم يتمكن من إنشاء تفعيل الجهاز. أعد المحاولة وتحقق من إعداد Firebase."
+              : null;
+
         toast.success(
           offlineActivationReady
             ? "تم تسجيل الدخول وتفعيل هذا الجهاز للعمل بدون إنترنت"
-            : `تم تسجيل الدخول، لكن التفعيل المحلي لم يكتمل: ${offlineActivationError ?? "تحقق من صلاحية التخزين المحلي في المتصفح"}`
+            : `تم تسجيل الدخول، لكن التفعيل المحلي لم يكتمل: ${offlineActivationError ?? serverActivationHint ?? "تحقق من صلاحية التخزين المحلي في المتصفح"}`
         );
 
         window.location.assign("/worker/dashboard");

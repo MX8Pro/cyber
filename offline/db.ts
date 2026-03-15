@@ -48,6 +48,41 @@ export const OFFLINE_GLOBAL_SCOPE = "__global__";
 export const OFFLINE_SESSION_KEY = "current-worker-session";
 export const OFFLINE_BROWSER_ID_KEY = "browser-id";
 
+const LS_PREFIX = "cashier-offline-fallback";
+
+function canUseLocalStorage() {
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
+function getLocalStorageKey(scope: string) {
+  return `${LS_PREFIX}:${scope}`;
+}
+
+function readLocalStorageScope<T>(scope: string) {
+  if (!canUseLocalStorage()) {
+    return {} as Record<string, T>;
+  }
+
+  const raw = window.localStorage.getItem(getLocalStorageKey(scope));
+  if (!raw) {
+    return {} as Record<string, T>;
+  }
+
+  try {
+    return JSON.parse(raw) as Record<string, T>;
+  } catch {
+    return {} as Record<string, T>;
+  }
+}
+
+function writeLocalStorageScope<T>(scope: string, value: Record<string, T>) {
+  if (!canUseLocalStorage()) {
+    return;
+  }
+
+  window.localStorage.setItem(getLocalStorageKey(scope), JSON.stringify(value));
+}
+
 function canUseIndexedDb() {
   return typeof window !== "undefined" && typeof indexedDB !== "undefined";
 }
@@ -88,7 +123,11 @@ async function getDb() {
     });
   }
 
-  return dbPromise;
+  try {
+    return await dbPromise;
+  } catch {
+    return null;
+  }
 }
 
 export async function putOfflineMutation(mutation: OfflineMutation) {
@@ -142,57 +181,110 @@ export async function deleteOfflineCache(key: string) {
 
 export async function putTrustedWorkerDevice(record: TrustedWorkerDeviceRecord) {
   const db = await getDb();
-  return db?.put("trustedDevices", record);
+  if (db) {
+    return db.put("trustedDevices", record);
+  }
+
+  const bucket = readLocalStorageScope<TrustedWorkerDeviceRecord>("trustedDevices");
+  bucket[record.id] = record;
+  writeLocalStorageScope("trustedDevices", bucket);
 }
 
 export async function getTrustedWorkerDevice(id: string) {
   const db = await getDb();
-  return db ? db.get("trustedDevices", id) : null;
+  if (db) {
+    return db.get("trustedDevices", id);
+  }
+
+  const bucket = readLocalStorageScope<TrustedWorkerDeviceRecord>("trustedDevices");
+  return bucket[id] ?? null;
 }
 
 export async function listTrustedWorkerDevices() {
   const db = await getDb();
-  return db ? db.getAll("trustedDevices") : [];
+  if (db) {
+    return db.getAll("trustedDevices");
+  }
+
+  return Object.values(readLocalStorageScope<TrustedWorkerDeviceRecord>("trustedDevices"));
 }
 
 export async function deleteTrustedWorkerDevice(id: string) {
   const db = await getDb();
-  return db?.delete("trustedDevices", id);
+  if (db) {
+    return db.delete("trustedDevices", id);
+  }
+
+  const bucket = readLocalStorageScope<TrustedWorkerDeviceRecord>("trustedDevices");
+  delete bucket[id];
+  writeLocalStorageScope("trustedDevices", bucket);
 }
 
 export async function putOfflineWorkerSession(session: OfflineWorkerSession) {
   const db = await getDb();
-  return db?.put("sessions", session);
+  if (db) {
+    return db.put("sessions", session);
+  }
+
+  const bucket = readLocalStorageScope<OfflineWorkerSession>("sessions");
+  bucket[session.id] = session;
+  writeLocalStorageScope("sessions", bucket);
 }
 
 export async function getOfflineWorkerSession(id = OFFLINE_SESSION_KEY) {
   const db = await getDb();
-  return db ? db.get("sessions", id) : null;
+  if (db) {
+    return db.get("sessions", id);
+  }
+
+  const bucket = readLocalStorageScope<OfflineWorkerSession>("sessions");
+  return bucket[id] ?? null;
 }
 
 export async function clearOfflineWorkerSession(id = OFFLINE_SESSION_KEY) {
   const db = await getDb();
-  return db?.delete("sessions", id);
+  if (db) {
+    return db.delete("sessions", id);
+  }
+
+  const bucket = readLocalStorageScope<OfflineWorkerSession>("sessions");
+  delete bucket[id];
+  writeLocalStorageScope("sessions", bucket);
 }
 
 export async function putOfflineMeta<TValue>(key: string, value: TValue) {
   const db = await getDb();
-  return db?.put("meta", { key, value, updatedAt: new Date().toISOString() });
+  if (db) {
+    return db.put("meta", { key, value, updatedAt: new Date().toISOString() });
+  }
+
+  const bucket = readLocalStorageScope<OfflineMetaEntry>("meta");
+  bucket[key] = { key, value, updatedAt: new Date().toISOString() };
+  writeLocalStorageScope("meta", bucket);
 }
 
 export async function getOfflineMeta<TValue>(key: string) {
   const db = await getDb();
-  if (!db) {
-    return null;
+  if (db) {
+    const record = await db.get("meta", key);
+    return (record?.value as TValue | undefined) ?? null;
   }
 
-  const record = await db.get("meta", key);
+  const bucket = readLocalStorageScope<OfflineMetaEntry>("meta");
+  const record = bucket[key];
   return (record?.value as TValue | undefined) ?? null;
 }
 
 export async function clearWorkerOfflineData(workerId: string) {
   const db = await getDb();
   if (!db) {
+    const trustedBucket = readLocalStorageScope<TrustedWorkerDeviceRecord>("trustedDevices");
+    const trustedFiltered = Object.fromEntries(Object.entries(trustedBucket).filter(([, value]) => value.workerId !== workerId));
+    writeLocalStorageScope("trustedDevices", trustedFiltered);
+
+    const sessionsBucket = readLocalStorageScope<OfflineWorkerSession>("sessions");
+    const sessionsFiltered = Object.fromEntries(Object.entries(sessionsBucket).filter(([, value]) => value.workerId !== workerId));
+    writeLocalStorageScope("sessions", sessionsFiltered);
     return;
   }
 
