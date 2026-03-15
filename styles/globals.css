@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+  background-image: linear-gradient(to bottom, rgba(240, 253, 250, 0.85), rgba(248, 250, 252, 1)),
+    radial-gradient(circle at 20% 20%, rgba(15, 118, 110, 0.08), transparent 30%);
+}
+
+::selection {
+  @apply bg-brand/20 text-slate-950;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.panel {
+  @apply rounded-3xl border border-slate-200 bg-white/90 shadow-soft backdrop-blur;
+}
+
+.metric-card {
+  @apply panel p-5;
+}
+
+.section-title {
+  @apply text-lg font-semibold text-slate-900;
+}
+
+.section-subtitle {
+  @apply text-sm text-slate-500;
+}
+
+.field-label {
+  @apply mb-2 block text-sm font-medium text-slate-700;
+}
+
+.field-input {
+  @apply w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15;
+}
+
+.field-error {
+  @apply mt-1 text-sm text-danger;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-2xl bg-brand px-5 py-3 text-sm font-semibold text-brand-foreground transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100;
+}
+
+.surface-glow {
+  box-shadow:
+    0 24px 60px -30px rgba(15, 23, 42, 0.25),
+    0 12px 28px -18px rgba(13, 148, 136, 0.28);
+}
+
+.glass-panel {
+  @apply rounded-[2rem] border border-white/70 bg-white/80 backdrop-blur-xl;
+  box-shadow:
+    0 30px 70px -38px rgba(15, 23, 42, 0.3),
+    0 18px 34px -24px rgba(15, 118, 110, 0.2);
+}
+
+.soft-ring {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.7),
+    0 14px 32px -22px rgba(15, 23, 42, 0.2);
+}
+
+.rise-in {
+  animation: rise-in 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+.pulse-soft {
+  animation: pulse-soft 1.8s ease-in-out infinite;
+}
+
+.mesh-bg {
+  background-image:
+    radial-gradient(circle at top right, rgba(13, 148, 136, 0.14), transparent 24%),
+    radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.92), rgba(255, 255, 255, 0.98));
+}
+
+.spot-grid {
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.skeleton-wave {
+  background-image: linear-gradient(
+    110deg,
+    rgba(226, 232, 240, 0.85) 8%,
+    rgba(255, 255, 255, 0.96) 18%,
+    rgba(226, 232, 240, 0.85) 33%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-wave 1.25s linear infinite;
+}
+
+.button-sheen {
+  background: linear-gradient(110deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+}
+
+@keyframes skeleton-wave {
+  to {
+    background-position-x: -200%;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
