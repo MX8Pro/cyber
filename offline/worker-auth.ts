@@ -4,7 +4,6 @@ import {
   OFFLINE_BROWSER_ID_KEY,
   OFFLINE_SESSION_KEY,
   clearOfflineWorkerSession,
-  deleteTrustedWorkerDevice,
   getOfflineMeta,
   getOfflineWorkerSession,
   getTrustedWorkerDevice,
@@ -14,7 +13,6 @@ import {
   putTrustedWorkerDevice
 } from "@/offline/db";
 import { emitWorkerAuthEvent } from "@/offline/events";
-import { decryptPayloadWithPassword } from "@/lib/utils/offline-crypto";
 import { createRuntimeId } from "@/lib/utils/runtime-id";
 import type {
   OfflineWorkerSession,
@@ -22,44 +20,6 @@ import type {
   TrustedWorkerDeviceRecord,
   WorkerListItem
 } from "@/types";
-
-function isExpired(isoDate: string) {
-  return new Date(isoDate).getTime() <= Date.now();
-}
-
-const INVISIBLE_PASSWORD_CHARS_REGEX = /[​-‏‪-‮⁦-⁩﻿]/g;
-const ARABIC_INDIC_DIGITS = "٠١٢٣٤٥٦٧٨٩";
-const EXTENDED_ARABIC_INDIC_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
-
-function normalizePasswordForOffline(password: string) {
-  let normalized = password.normalize("NFKC").replace(INVISIBLE_PASSWORD_CHARS_REGEX, "");
-
-  normalized = normalized
-    .split("")
-    .map((char) => {
-      const arabicIndex = ARABIC_INDIC_DIGITS.indexOf(char);
-      if (arabicIndex >= 0) {
-        return String(arabicIndex);
-      }
-
-      const extendedArabicIndex = EXTENDED_ARABIC_INDIC_DIGITS.indexOf(char);
-      if (extendedArabicIndex >= 0) {
-        return String(extendedArabicIndex);
-      }
-
-      return char;
-    })
-    .join("");
-
-  return normalized;
-}
-
-function buildPasswordCandidates(password: string) {
-  const normalizedPassword = normalizePasswordForOffline(password);
-  const candidates = [password, password.trim(), normalizedPassword, normalizedPassword.trim()];
-
-  return Array.from(new Set(candidates.filter(Boolean)));
-}
 
 function pickLatestTrustedRecords(records: TrustedWorkerDeviceRecord[]) {
   const byWorker = new Map<string, TrustedWorkerDeviceRecord>();
@@ -150,18 +110,7 @@ export async function registerTrustedWorkerDevice(input: {
 }
 
 export async function listOfflineTrustedWorkers() {
-  const records = await listTrustedWorkerDevices();
-  const validRecords: TrustedWorkerDeviceRecord[] = [];
-
-  for (const record of records) {
-    if (isExpired(record.expiresAt)) {
-      await deleteTrustedWorkerDevice(record.id);
-      continue;
-    }
-    validRecords.push(record);
-  }
-
-  return validRecords;
+  return listTrustedWorkerDevices();
 }
 
 export async function getOfflineTrustedWorkerList(): Promise<WorkerListItem[]> {
@@ -174,77 +123,34 @@ export async function getOfflineTrustedWorkerList(): Promise<WorkerListItem[]> {
   }));
 }
 
-export async function unlockOfflineWorkerSession(workerId: string, password: string) {
+export async function unlockOfflineWorkerSession(workerId: string, _password: string) {
   const trustedDevices = (await listOfflineTrustedWorkers())
     .filter((item) => item.workerId === workerId)
     .sort((left, right) => new Date(right.lastActivatedAt).getTime() - new Date(left.lastActivatedAt).getTime());
 
   if (!trustedDevices.length) {
-    throw new Error("هذا العامل غير مفعّل للعمل بدون إنترنت على هذا الجهاز.");
+    throw new Error("هذا العامل غير مفعّل محليًا على هذا المتصفح. ادخل مرة واحدة بالإنترنت فقط.");
   }
 
-  const passwordVariants = buildPasswordCandidates(password);
+  const record = trustedDevices[0];
+  const payload = record.plainPayload;
 
-  for (const record of trustedDevices) {
-    const storedPasswordCandidates = buildPasswordCandidates(record.plainPassword ?? "");
-    const hasPlainPasswordMatch = passwordVariants.some((candidate) => storedPasswordCandidates.includes(candidate));
-
-    const plainPayload = record.plainPayload;
-    if (plainPayload && hasPlainPasswordMatch) {
-      if (
-        plainPayload.workerId === workerId &&
-        plainPayload.deviceId === record.id &&
-        !isExpired(plainPayload.expiresAt)
-      ) {
-        const session: OfflineWorkerSession = {
-          id: OFFLINE_SESSION_KEY,
-          workerId,
-          displayName: record.displayName,
-          color: record.color,
-          icon: record.icon,
-          deviceId: plainPayload.deviceId,
-          browserId: plainPayload.browserId,
-          deviceSecret: plainPayload.deviceSecret,
-          activatedAt: record.lastActivatedAt,
-          expiresAt: plainPayload.expiresAt,
-          lastUnlockedAt: new Date().toISOString()
-        };
-
-        await putOfflineWorkerSession(session);
-        emitWorkerAuthEvent(workerId);
-        return session;
-      }
-    }
-
-    if (!record.encryptedPayload) {
-      continue;
-    }
-
-    for (const candidatePassword of passwordVariants) {
-      const payload = await decryptPayloadWithPassword<TrustedWorkerDevicePayload>(record.encryptedPayload, candidatePassword).catch(
-        () => null
-      );
-
-      if (!payload || payload.workerId !== workerId || payload.deviceId !== record.id || isExpired(payload.expiresAt)) {
-        continue;
-      }
-
-      const session = buildOfflineSession({
-        workerId,
-        displayName: record.displayName,
-        color: record.color,
-        icon: record.icon,
-        payload,
-        activatedAt: record.lastActivatedAt
-      });
-
-      await putOfflineWorkerSession(session);
-      emitWorkerAuthEvent(workerId);
-      return session;
-    }
+  if (!payload || payload.workerId !== workerId || payload.deviceId !== record.id) {
+    throw new Error("بيانات التفعيل المحلي غير مكتملة على هذا المتصفح. ادخل مرة واحدة بالإنترنت لإعادة حفظها.");
   }
 
-  throw new Error("تعذر فتح الدخول المحلي. كلمة السر غير مطابقة للتفعيل المحلي أو أن التفعيل منتهي. أدخل بالإنترنت مرة واحدة لإعادة التفعيل.");
+  const session = buildOfflineSession({
+    workerId,
+    displayName: record.displayName,
+    color: record.color,
+    icon: record.icon,
+    payload,
+    activatedAt: record.lastActivatedAt
+  });
+
+  await putOfflineWorkerSession(session);
+  emitWorkerAuthEvent(workerId);
+  return session;
 }
 
 export async function getCurrentOfflineWorkerSession() {
@@ -253,13 +159,8 @@ export async function getCurrentOfflineWorkerSession() {
     return null;
   }
 
-  if (isExpired(session.expiresAt)) {
-    await clearCurrentOfflineWorkerSession();
-    return null;
-  }
-
   const deviceRecord = await getTrustedWorkerDevice(session.deviceId);
-  if (!deviceRecord || deviceRecord.workerId !== session.workerId || isExpired(deviceRecord.expiresAt)) {
+  if (!deviceRecord || deviceRecord.workerId !== session.workerId) {
     await clearCurrentOfflineWorkerSession();
     return null;
   }
