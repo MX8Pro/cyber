@@ -10,7 +10,7 @@ import { WorkerShell } from "@/components/worker/worker-shell";
 import { WorkerTransactionScreen } from "@/components/worker/worker-transaction-screen";
 import { useOfflineWorkerSession } from "@/hooks/use-offline-worker-session";
 import { useWorkerDashboardSnapshot } from "@/hooks/use-worker-dashboard-snapshot";
-import { DEFAULT_SHIFT_SCHEDULE } from "@/lib/utils/shift-schedule";
+import { DEFAULT_SHIFT_SCHEDULE, getShiftTypeForDate } from "@/lib/utils/shift-schedule";
 import type { AppSettingsRecord } from "@/types";
 
 const FALLBACK_SETTINGS: AppSettingsRecord = {
@@ -67,24 +67,28 @@ export function WorkerOfflineRoute({
   const workerName = snapshot?.worker.displayName ?? session.displayName;
   const settings = snapshot?.settings ?? FALLBACK_SETTINGS;
 
+  const fallbackOpeningContext = {
+    suggestedShiftType: getShiftTypeForDate(new Date(), settings.shiftSchedule ?? DEFAULT_SHIFT_SCHEDULE),
+    handoverIsEstimated: true,
+    hasOpenConflict: false
+  } as const;
+
   return (
     <WorkerShell workerName={workerName} workerId={session.workerId}>
       {view === "dashboard" ? (
         <WorkerDashboardPanel workerId={session.workerId} />
       ) : view === "open" ? (
-        snapshot?.openingContext ? (
-          <div className="space-y-4">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-950">استلام المناوبة</h1>
-              <p className="text-sm text-slate-500">يمكنك البدء من النسخة المحلية المحفوظة، وسيتم الرفع إلى Firebase عند رجوع الإنترنت.</p>
-            </div>
-            <WorkerOpenShiftForm workerId={session.workerId} openingContext={snapshot.openingContext} />
+        <div className="space-y-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-950">استلام المناوبة</h1>
+            <p className="text-sm text-slate-500">
+              {snapshot?.openingContext
+                ? "يمكنك البدء من النسخة المحلية المحفوظة، وسيتم الرفع إلى Firebase عند رجوع الإنترنت."
+                : "لا توجد بيانات استلام محفوظة بالكامل، لكن يمكنك بدء المناوبة يدويًا وسيتم اعتمادها محليًا ثم رفعها عند رجوع الإنترنت."}
+            </p>
           </div>
-        ) : (
-          <section className="rounded-[1.5rem] bg-white p-5 text-sm leading-7 text-slate-600 shadow-soft">
-            لا توجد بيانات استلام محلية كافية بعد. افتح الرئيسية مرة واحدة بالإنترنت ليتم حفظ حالة البداية على هذا الجهاز.
-          </section>
-        )
+          <WorkerOpenShiftForm workerId={session.workerId} openingContext={snapshot?.openingContext ?? fallbackOpeningContext} />
+        </div>
       ) : view === "transaction" ? (
         <WorkerTransactionScreen workerId={session.workerId} />
       ) : (
