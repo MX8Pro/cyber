@@ -3,7 +3,7 @@ import { jsonError, jsonOk, parseJson } from "@/lib/server/http";
 import { requireRoleForApi } from "@/lib/server/session";
 import { createTransactionForWorker, findWorkerById, getActiveShiftForWorker, getAppSettings } from "@/lib/server/repositories";
 import { writeAuditLog } from "@/lib/server/audit";
-import { formatTelegramMessage, formatTelegramMoney, sendConfiguredTelegramNotification } from "@/lib/server/telegram";
+import { formatTelegramMoney, sendConfiguredTelegramNotification, buildTelegramNotification } from "@/lib/server/telegram";
 
 export async function POST(request: Request) {
   try {
@@ -46,13 +46,16 @@ export async function POST(request: Request) {
       if (transaction.amount >= settings.largeExpenseThreshold) {
         await sendConfiguredTelegramNotification(
           "large_expense",
-          formatTelegramMessage([
-            "تنبيه مصروف كبير",
-            `العامل: ${worker.displayName}`,
-            `المبلغ: ${formatTelegramMoney(transaction.amount)}`,
-            `الخزينة: ${transaction.treasury === "shop" ? "المحل" : "الفليكسي"}`,
-            `الملاحظة: ${transaction.description ?? "بدون ملاحظة"}`
-          ])
+          buildTelegramNotification({
+            title: "تنبيه مصروف كبير",
+            level: "warning",
+            lines: [
+              `العامل: ${worker.displayName}`,
+              `المبلغ: ${formatTelegramMoney(transaction.amount)}`,
+              `الخزينة: ${transaction.treasury === "shop" ? "المحل" : "الفليكسي"}`,
+              `الملاحظة: ${transaction.description ?? "بدون ملاحظة"}`
+            ]
+          })
         ).catch((error) => {
           console.error("large expense telegram notification failed", error);
         });

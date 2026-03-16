@@ -3,7 +3,7 @@ import { jsonError, jsonOk, parseJson } from "@/lib/server/http";
 import { requireRoleForApi } from "@/lib/server/session";
 import { closeShiftForWorker, findWorkerById, getShiftWithTransactions } from "@/lib/server/repositories";
 import { writeAuditLog } from "@/lib/server/audit";
-import { formatTelegramMessage, formatTelegramMoney, sendConfiguredTelegramNotification } from "@/lib/server/telegram";
+import { formatTelegramMoney, sendConfiguredTelegramNotification, buildTelegramNotification } from "@/lib/server/telegram";
 
 export async function POST(request: Request, { params }: { params: Promise<{ shiftId: string }> }) {
   try {
@@ -41,18 +41,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ shi
       action: "shift_closed",
       metadata: { netProfit: summary.netProfit }
     });
-    const closingLines = [
-      "تم إغلاق المناوبة",
-      `العامل: ${worker.displayName}`,
-      `المحل النهائي: ${formatTelegramMoney(summary.closingShopCash)}`,
-      `الفليكسي النهائي: ${formatTelegramMoney(summary.closingFlexyCash)}`,
-      `فرق المحل: ${formatTelegramMoney(summary.deltaShopCash)}`,
-      `فرق الفليكسي: ${formatTelegramMoney(summary.deltaFlexyCash)}`,
-      `الفائدة الصافية: ${formatTelegramMoney(summary.netProfit)}`,
-      `حصة العامل: ${formatTelegramMoney(summary.workerProfitShare)}`,
-      `حصة المحل: ${formatTelegramMoney(summary.shopProfitShare)}`
-    ];
-    const closingMessage = formatTelegramMessage(closingLines);
+    const closingMessage = buildTelegramNotification({
+      title: "تم إغلاق المناوبة",
+      level: "info",
+      lines: [
+        `العامل: ${worker.displayName}`,
+        `المحل النهائي: ${formatTelegramMoney(summary.closingShopCash)}`,
+        `الفليكسي النهائي: ${formatTelegramMoney(summary.closingFlexyCash)}`,
+        `فرق المحل: ${formatTelegramMoney(summary.deltaShopCash)}`,
+        `فرق الفليكسي: ${formatTelegramMoney(summary.deltaFlexyCash)}`,
+        `الفائدة الصافية: ${formatTelegramMoney(summary.netProfit)}`,
+        `حصة العامل: ${formatTelegramMoney(summary.workerProfitShare)}`,
+        `حصة المحل: ${formatTelegramMoney(summary.shopProfitShare)}`
+      ]
+    });
 
     await Promise.allSettled([
       sendConfiguredTelegramNotification("shift_closed", closingMessage),

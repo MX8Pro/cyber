@@ -10,7 +10,7 @@ import { signInWithPassword } from "@/lib/server/identity-toolkit";
 import { assertRateLimit } from "@/lib/server/rate-limit";
 import { findWorkerById, issueTrustedWorkerDevice, markWorkerLogin } from "@/lib/server/repositories";
 import { createSessionCookie, setSessionCookie } from "@/lib/server/session";
-import { formatTelegramMessage, sendConfiguredTelegramNotification } from "@/lib/server/telegram";
+import { sendConfiguredTelegramNotification, buildTelegramNotification } from "@/lib/server/telegram";
 
 export async function POST(request: Request) {
   try {
@@ -59,11 +59,15 @@ export async function POST(request: Request) {
 
     await sendConfiguredTelegramNotification(
       "worker_login",
-      formatTelegramMessage([
-        "تم تسجيل دخول عامل",
-        `العامل: ${worker.displayName}`,
-        `الوقت: ${new Date().toLocaleString("fr-FR")}`
-      ])
+      buildTelegramNotification({
+        title: "تسجيل دخول عامل",
+        level: "success",
+        lines: [
+          `العامل: ${worker.displayName}`,
+          `المعرف: ${worker.id}`,
+          `الجهاز: ${hdrs.get("user-agent")?.slice(0, 120) ?? "غير معروف"}`
+        ]
+      })
     ).catch((error) => {
       console.error("worker login telegram notification failed", error);
     });
