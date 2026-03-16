@@ -32,7 +32,8 @@ export function WorkerManagementForm() {
       color: colorPresets[0].value,
       icon: iconPresets[0],
       phone: "",
-      notes: ""
+      notes: "",
+      creditBalance: 0
     }
   });
 
@@ -57,7 +58,8 @@ export function WorkerManagementForm() {
       color: values.color?.trim() || undefined,
       icon: values.icon?.trim() || undefined,
       phone: values.phone?.trim() || undefined,
-      notes: values.notes?.trim() || undefined
+      notes: values.notes?.trim() || undefined,
+      creditBalance: Number(values.creditBalance ?? 0)
     };
 
     const response = await fetch("/api/admin/workers", {
@@ -81,7 +83,8 @@ export function WorkerManagementForm() {
       color: colorPresets[0].value,
       icon: iconPresets[0],
       phone: "",
-      notes: ""
+      notes: "",
+      creditBalance: 0
     });
     router.refresh();
   });

@@ -21,7 +21,8 @@ export default async function WorkerDashboardPage() {
       id: dashboard.worker?.id ?? session.workerId!,
       displayName: dashboard.worker?.displayName ?? "العامل",
       color: dashboard.worker?.color,
-      icon: dashboard.worker?.icon
+      icon: dashboard.worker?.icon,
+      creditBalance: dashboard.worker?.creditBalance ?? 0
     },
     activeShift: dashboard.activeShift ?? null,
     activeShiftTransactions: activeShiftBundle?.transactions ?? [],

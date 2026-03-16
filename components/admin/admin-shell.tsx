@@ -11,6 +11,7 @@ const links = [
   { href: "/admin/workers", label: "العمال", icon: Users },
   { href: "/admin/shifts", label: "المناوبات", icon: Wallet },
   { href: "/admin/reports", label: "التقارير", icon: LineChart },
+  { href: "/admin/transactions", label: "العمليات", icon: Wallet },
   { href: "/admin/settings", label: "الإعدادات", icon: Settings },
   { href: "/admin/settings/telegram", label: "Telegram", icon: Bell }
 ];
