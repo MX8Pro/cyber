@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { LoadingButton } from "@/components/shared/loading-state";
-import { formatDateTime } from "@/lib/utils/format";
+import { formatCurrency, formatDateTime } from "@/lib/utils/format";
 import type { WorkerRecord } from "@/types";
 
 async function readApiError(response: Response, fallbackMessage: string) {
@@ -15,6 +15,7 @@ async function readApiError(response: Response, fallbackMessage: string) {
 export function WorkersTable({ workers }: { workers: WorkerRecord[] }) {
   const router = useRouter();
   const [passwordInputs, setPasswordInputs] = useState<Record<string, string>>({});
+  const [creditInputs, setCreditInputs] = useState<Record<string, string>>({});
   const [pendingActionByWorker, setPendingActionByWorker] = useState<Record<string, string | null>>({});
 
   async function withPending(workerId: string, action: string, task: () => Promise<void>) {
@@ -70,6 +71,32 @@ export function WorkersTable({ workers }: { workers: WorkerRecord[] }) {
     });
   }
 
+
+  async function updateCredit(worker: WorkerRecord) {
+    const raw = (creditInputs[worker.id] ?? `${worker.creditBalance ?? 0}`).trim();
+    const creditBalance = Number(raw || 0);
+    if (!Number.isFinite(creditBalance) || creditBalance < 0) {
+      toast.error("قيمة الكريديت غير صحيحة");
+      return;
+    }
+
+    await withPending(worker.id, "credit", async () => {
+      const response = await fetch(`/api/admin/workers/${worker.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ creditBalance })
+      });
+
+      if (!response.ok) {
+        toast.error(await readApiError(response, "تعذر تحديث الكريديت"));
+        return;
+      }
+
+      toast.success("تم تحديث كريديت العامل");
+      router.refresh();
+    });
+  }
   async function softDelete(worker: WorkerRecord) {
     await withPending(worker.id, "delete", async () => {
       const response = await fetch(`/api/admin/workers/${worker.id}`, {
@@ -117,6 +144,7 @@ export function WorkersTable({ workers }: { workers: WorkerRecord[] }) {
                 <p>آخر دخول: {worker.lastLoginAt ? formatDateTime(worker.lastLoginAt) : "لا يوجد"}</p>
                 <p>آخر مناوبة: {worker.lastShiftAt ? formatDateTime(worker.lastShiftAt) : "لا يوجد"}</p>
                 <p>الدور: {worker.role}</p>
+                <p>الكريديت الحالي: {formatCurrency(worker.creditBalance ?? 0)}</p>
               </div>
 
               <div className="mt-4 space-y-2">
@@ -130,8 +158,29 @@ export function WorkersTable({ workers }: { workers: WorkerRecord[] }) {
                   }
                 />
 
-                <div className="flex flex-wrap gap-2">
-                  <LoadingButton
+
+                <input
+                  type="number"
+                  min={0}
+                  className="field-input"
+                  placeholder="الكريديت"
+                  value={creditInputs[worker.id] ?? `${worker.creditBalance ?? 0}`}
+                  onChange={(event) =>
+                    setCreditInputs((current) => ({ ...current, [worker.id]: event.target.value }))
+                  }
+                />
+
+                <LoadingButton
+                  type="button"
+                  variant="secondary"
+                  loading={pending === "credit"}
+                  loadingText="جارٍ حفظ الكريديت..."
+                  onClick={() => updateCredit(worker)}
+                >
+                  حفظ الكريديت
+                </LoadingButton>
+
+                <div className="flex flex-wrap gap-2">                  <LoadingButton
                     type="button"
                     variant="secondary"
                     loading={pending === "toggle"}

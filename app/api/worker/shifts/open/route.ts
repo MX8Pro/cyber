@@ -8,7 +8,7 @@ import {
   updateWorkerLastShift
 } from "@/lib/server/repositories";
 import { writeAuditLog } from "@/lib/server/audit";
-import { formatTelegramMessage, formatTelegramMoney, sendConfiguredTelegramNotification } from "@/lib/server/telegram";
+import { formatTelegramMoney, sendConfiguredTelegramNotification, buildTelegramNotification } from "@/lib/server/telegram";
 
 export async function POST(request: Request) {
   try {
@@ -50,14 +50,16 @@ export async function POST(request: Request) {
 
     await sendConfiguredTelegramNotification(
       "shift_opened",
-      formatTelegramMessage([
-        "تم استلام مناوبة جديدة",
-        `العامل: ${worker.displayName}`,
-        `النوع: ${shift.shiftType}`,
-        `أموال المحل: ${formatTelegramMoney(shift.opening.openingShopCash)}`,
-        `أموال الفليكسي: ${formatTelegramMoney(shift.opening.openingFlexyCash)}`,
-        `الوقت: ${new Date(shift.opening.openedAt).toLocaleString("fr-FR")}`
-      ])
+      buildTelegramNotification({
+        title: "تم استلام مناوبة جديدة",
+        level: "success",
+        lines: [
+          `العامل: ${worker.displayName}`,
+          `النوع: ${shift.shiftType}`,
+          `أموال المحل: ${formatTelegramMoney(shift.opening.openingShopCash)}`,
+          `أموال الفليكسي: ${formatTelegramMoney(shift.opening.openingFlexyCash)}`
+        ]
+      })
     ).catch((error) => {
       console.error("shift opened telegram notification failed", error);
     });
@@ -65,14 +67,17 @@ export async function POST(request: Request) {
     if (openingContext.hasOpenConflict) {
       await sendConfiguredTelegramNotification(
         "variance_alert",
-        formatTelegramMessage([
-          "تنبيه مناوبة متروكة بدون إغلاق",
-          `العامل السابق: ${openingContext.previousWorkerName ?? openingContext.previousWorkerId ?? "غير معروف"}`,
-          `العامل الحالي: ${worker.displayName}`,
-          `المحل المتوقع: ${formatTelegramMoney(openingContext.handoverShopCash ?? 0)}`,
-          `الفليكسي المتوقع: ${formatTelegramMoney(openingContext.handoverFlexyCash ?? 0)}`,
-          "تم فتح مناوبة جديدة وتحويل السابقة إلى مراجعة"
-        ])
+        buildTelegramNotification({
+          title: "تنبيه مناوبة متروكة بدون إغلاق",
+          level: "warning",
+          lines: [
+            `العامل السابق: ${openingContext.previousWorkerName ?? openingContext.previousWorkerId ?? "غير معروف"}`,
+            `العامل الحالي: ${worker.displayName}`,
+            `المحل المتوقع: ${formatTelegramMoney(openingContext.handoverShopCash ?? 0)}`,
+            `الفليكسي المتوقع: ${formatTelegramMoney(openingContext.handoverFlexyCash ?? 0)}`,
+            "تم فتح مناوبة جديدة وتحويل السابقة إلى مراجعة"
+          ]
+        })
       ).catch((error) => {
         console.error("open shift conflict telegram notification failed", error);
       });

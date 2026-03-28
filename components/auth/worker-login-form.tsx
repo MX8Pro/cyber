@@ -13,6 +13,7 @@ import { workerLoginSchema, type WorkerLoginInput } from "@/lib/validators/auth"
 import {
   getOfflineTrustedWorkerList,
   getOrCreateBrowserId,
+  activateOfflineSessionFromTrustedDevice,
   registerTrustedWorkerDevice,
   unlockOfflineWorkerSession
 } from "@/offline/worker-auth";
@@ -23,6 +24,7 @@ interface WorkerLoginResponse {
   ok: true;
   worker: WorkerListItem;
   trustedDevice: TrustedWorkerDevicePayload | null;
+  trustedDeviceError?: "SERVER_ACTIVATION_FAILED" | "BROWSER_ID_MISSING" | null;
 }
 
 export function WorkerLoginForm() {
@@ -170,6 +172,7 @@ export function WorkerLoginForm() {
 
         const data = (await response.json()) as WorkerLoginResponse;
         let offlineActivationReady = false;
+        let offlineActivationError: string | null = null;
 
         if (data.trustedDevice) {
           try {
@@ -178,17 +181,28 @@ export function WorkerLoginForm() {
               payload: data.trustedDevice,
               password: values.password
             });
-            await unlockOfflineWorkerSession(values.workerId, values.password);
+            await activateOfflineSessionFromTrustedDevice({
+              worker: data.worker,
+              payload: data.trustedDevice
+            });
             offlineActivationReady = true;
-          } catch {
+          } catch (error) {
             offlineActivationReady = false;
+            offlineActivationError = error instanceof Error ? error.message : "فشل حفظ التفعيل المحلي";
           }
         }
+
+        const serverActivationHint =
+          data.trustedDeviceError === "BROWSER_ID_MISSING"
+            ? "فشل توليد معرف الجهاز المحلي. تحقق من سماح المتصفح بالتخزين المحلي."
+            : data.trustedDeviceError === "SERVER_ACTIVATION_FAILED"
+              ? "الخادم لم يتمكن من إنشاء تفعيل الجهاز. أعد المحاولة وتحقق من إعداد Firebase."
+              : null;
 
         toast.success(
           offlineActivationReady
             ? "تم تسجيل الدخول وتفعيل هذا الجهاز للعمل بدون إنترنت"
-            : "تم تسجيل الدخول، لكن التفعيل المحلي لم يكتمل على هذا الجهاز بعد"
+            : `تم تسجيل الدخول، لكن التفعيل المحلي لم يكتمل: ${offlineActivationError ?? serverActivationHint ?? "تحقق من صلاحية التخزين المحلي في المتصفح"}`
         );
 
         window.location.assign("/worker/dashboard");
@@ -207,7 +221,7 @@ export function WorkerLoginForm() {
   );
 
   return (
-    <div className="glass-panel surface-glow rise-in overflow-hidden p-5">
+    <div className="glass-panel surface-glow rise-in overflow-hidden p-4 sm:p-5 lg:p-6">
       <div className="rounded-[1.75rem] bg-[linear-gradient(135deg,#0f172a_0%,#0f766e_100%)] p-5 text-white">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
@@ -254,7 +268,7 @@ export function WorkerLoginForm() {
         </div>
       </div>
 
-      <form onSubmit={onValidSubmit} className="mt-5 space-y-5" noValidate>
+      <form onSubmit={onValidSubmit} className="mt-5 space-y-5 lg:space-y-6" noValidate>
         <section className="rounded-[1.75rem] border border-slate-200 bg-white p-4">
           <div className="mb-3 flex items-center gap-2 text-slate-900">
             <UsersRound className="h-4 w-4 text-brand" />
@@ -262,7 +276,7 @@ export function WorkerLoginForm() {
           </div>
 
           {isLoadingWorkers ? (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <SkeletonBlock className="h-24" />
               <SkeletonBlock className="h-24" />
               <SkeletonBlock className="h-24" />
@@ -350,7 +364,7 @@ export function WorkerLoginForm() {
         <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           <div className="flex items-start gap-2">
             <ShieldCheck className="mt-0.5 h-4 w-4 text-brand" />
-            <p>لا يتم حفظ كلمة السر الخام داخل المتصفح. الذي يُحفَظ هو تفعيل مشفر لهذا الجهاز فقط ولمدة محدودة.</p>
+            <p>يتم حفظ تفعيل محلي لهذا الجهاز داخل المتصفح لتشغيل وضع الأوفلاين. إذا مسحت بيانات المتصفح أو استخدمت متصفحًا آخر ستحتاج إعادة التفعيل بالإنترنت.</p>
           </div>
         </section>
 

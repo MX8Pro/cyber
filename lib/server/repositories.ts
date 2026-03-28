@@ -64,6 +64,10 @@ function sortByCreatedAtAsc<T extends { createdAt: string }>(items: T[]) {
   return [...items].sort((left, right) => left.createdAt.localeCompare(right.createdAt));
 }
 
+function mapDocData<T>(doc: FirebaseFirestore.QueryDocumentSnapshot): T {
+  return doc.data() as T;
+}
+
 function buildDefaultSettings(updatedAt = nowIso()): AppSettingsRecord {
   return {
     id: APP_SETTINGS_DOC_ID,
@@ -298,7 +302,7 @@ export async function createInitialAdmin(input: {
 
 export async function getPublicWorkerLoginList(): Promise<WorkerListItem[]> {
   const snapshot = await workersCollection().orderBy("displayName", "asc").get();
-  const workers = snapshot.docs.map((doc: any) => doc.data() as WorkerRecord);
+  const workers = snapshot.docs.map(mapDocData<WorkerRecord>);
 
   return workers
     .filter((worker: WorkerRecord) => worker.isActive && !worker.deletedAt)
@@ -416,6 +420,7 @@ export async function createWorkerAccount(
     icon?: string;
     phone?: string;
     notes?: string;
+    creditBalance?: number;
   }
 ) {
   const workerId = randomUUID();
@@ -441,6 +446,7 @@ export async function createWorkerAccount(
     icon: input.icon,
     phone: input.phone,
     notes: input.notes,
+    creditBalance: input.creditBalance ?? 0,
     deletedAt: null,
     lastLoginAt: null,
     lastShiftAt: null,
@@ -468,7 +474,7 @@ export async function createWorkerAccount(
 
 export async function updateWorkerAccount(
   workerId: string,
-  updates: Partial<Pick<WorkerRecord, "fullName" | "displayName" | "phone" | "notes" | "color" | "icon" | "isActive">>
+  updates: Partial<Pick<WorkerRecord, "fullName" | "displayName" | "phone" | "notes" | "color" | "icon" | "isActive" | "creditBalance">>
 ) {
   const worker = await findWorkerById(workerId);
   if (!worker) {
@@ -482,7 +488,8 @@ export async function updateWorkerAccount(
     notes: updates.notes ?? worker.notes,
     color: updates.color ?? worker.color,
     icon: updates.icon ?? worker.icon,
-    isActive: updates.isActive ?? worker.isActive
+    isActive: updates.isActive ?? worker.isActive,
+    creditBalance: updates.creditBalance ?? worker.creditBalance ?? 0
   };
 
   const patch = stripUndefinedFields({
@@ -593,7 +600,7 @@ export async function markWorkerLogin(authUid: string) {
 
 export async function listWorkersForAdmin() {
   const snapshot = await workersCollection().orderBy("createdAt", "desc").get();
-  return snapshot.docs.map((doc: any) => doc.data() as WorkerRecord);
+  return snapshot.docs.map(mapDocData<WorkerRecord>);
 }
 
 export async function getAppSettings(): Promise<AppSettingsRecord> {
@@ -763,12 +770,12 @@ export async function getWorkerDashboard(workerId: string) {
     shiftsCollection().where("workerId", "==", workerId).get(),
     transactionsCollection().where("workerId", "==", workerId).get()
   ]);
-  const shifts = shiftSnapshot.docs.map((doc: any) => doc.data() as ShiftRecord);
-  const transactions = recentTransactionsSnapshot.docs.map((doc: any) => doc.data() as TransactionRecord);
+  const shifts = shiftSnapshot.docs.map(mapDocData<ShiftRecord>);
+  const transactions = recentTransactionsSnapshot.docs.map(mapDocData<TransactionRecord>);
 
   const activeShift = shifts.find((shift: ShiftRecord) => shift.status === "open");
 
-  const recentTransactions = sortByCreatedAtDesc<TransactionRecord>(transactions).slice(0, 5);
+  const recentTransactions = sortByCreatedAtDesc<TransactionRecord>(transactions).slice(0, 20);
   const openingContext = activeShift ? null : await getShiftOpeningContext();
 
   return {
@@ -786,19 +793,19 @@ export async function listAdminDashboardSummary() {
     getAdminDb().collection("auditLogs").orderBy("createdAt", "desc").limit(10).get()
   ]);
 
-  const workers = workersSnapshot.docs.map((doc: any) => doc.data() as WorkerRecord);
-  const shifts = shiftsSnapshot.docs.map((doc: any) => doc.data() as ShiftRecord);
+  const workers = workersSnapshot.docs.map(mapDocData<WorkerRecord>);
+  const shifts = shiftsSnapshot.docs.map(mapDocData<ShiftRecord>);
 
   return {
     workers,
     shifts,
-    auditLogs: auditSnapshot.docs.map((doc: any) => doc.data() as AuditLogRecord)
+    auditLogs: auditSnapshot.docs.map(mapDocData<AuditLogRecord>)
   };
 }
 
 export async function listShiftsForAdmin() {
   const snapshot = await shiftsCollection().orderBy("createdAt", "desc").limit(100).get();
-  return snapshot.docs.map((doc: any) => doc.data() as ShiftRecord);
+  return snapshot.docs.map(mapDocData<ShiftRecord>);
 }
 
 export async function resolveShiftReview(shiftId: string, session: SessionUser) {
@@ -827,8 +834,89 @@ export async function resolveShiftReview(shiftId: string, session: SessionUser) 
 
 export async function listClosedShiftReports() {
   const snapshot = await shiftsCollection().orderBy("createdAt", "desc").get();
-  const shifts = snapshot.docs.map((doc: any) => doc.data() as ShiftRecord);
+  const shifts = snapshot.docs.map(mapDocData<ShiftRecord>);
   return shifts.filter((shift: ShiftRecord) => shift.status === "closed");
+}
+
+
+export async function listTransactionsForAdmin(limit = 200) {
+  const snapshot = await transactionsCollection().orderBy("createdAt", "desc").limit(limit).get();
+  return snapshot.docs.map(mapDocData<TransactionRecord>);
+}
+
+export async function updateTransactionForAdmin(
+  transactionId: string,
+  updates: Partial<Pick<TransactionRecord, "amount" | "description">>
+) {
+  const ref = transactionsCollection().doc(transactionId);
+  const snapshot = await ref.get();
+  if (!snapshot.exists) {
+    throw new Error("TRANSACTION_NOT_FOUND");
+  }
+
+  const patch = stripUndefinedFields({
+    amount: updates.amount,
+    description: updates.description
+  });
+
+  await ref.set(patch, { merge: true });
+  const updated = await ref.get();
+  return updated.data() as TransactionRecord;
+}
+
+async function deleteCollectionDocs(collectionName: string) {
+  const snapshot = await getAdminDb().collection(collectionName).get();
+  if (!snapshot.docs.length) {
+    return;
+  }
+
+  const batches: Promise<FirebaseFirestore.WriteResult[]>[] = [];
+  let batch = getAdminDb().batch();
+  let opCount = 0;
+
+  for (const doc of snapshot.docs) {
+    batch.delete(doc.ref);
+    opCount += 1;
+    if (opCount === 400) {
+      batches.push(batch.commit());
+      batch = getAdminDb().batch();
+      opCount = 0;
+    }
+  }
+
+  if (opCount > 0) {
+    batches.push(batch.commit());
+  }
+
+  await Promise.all(batches);
+}
+
+export async function resetSystemDataForDeployment() {
+  const auth = getAdminAuthClient();
+
+  let nextPageToken: string | undefined;
+  do {
+    const page = await auth.listUsers(1000, nextPageToken);
+    nextPageToken = page.pageToken;
+    await Promise.all(page.users.map((user) => auth.deleteUser(user.uid).catch(() => undefined)));
+  } while (nextPageToken);
+
+  for (const collectionName of [
+    "auditLogs",
+    "transactions",
+    "shifts",
+    "syncReceipts",
+    "workerDevices",
+    "workers",
+    "users",
+    "settings",
+    "secrets",
+    "system"
+  ]) {
+    await deleteCollectionDocs(collectionName);
+  }
+
+  invalidateSetupStateCache();
 }
 
 export async function openShiftForWorker(input: {
@@ -902,7 +990,7 @@ export async function openShiftForWorker(input: {
 
 export async function getActiveShiftForWorker(workerId: string) {
   const snapshot = await shiftsCollection().where("workerId", "==", workerId).get();
-  const shifts = snapshot.docs.map((doc: any) => doc.data() as ShiftRecord);
+  const shifts = snapshot.docs.map(mapDocData<ShiftRecord>);
   return shifts.find((shift: ShiftRecord) => shift.status === "open");
 }
 
@@ -957,7 +1045,7 @@ export async function getShiftWithTransactions(shiftId: string, workerId?: strin
   return {
     shift,
     transactions: sortByCreatedAtAsc<TransactionRecord>(
-      transactionsSnapshot.docs.map((doc: any) => doc.data() as TransactionRecord)
+      transactionsSnapshot.docs.map(mapDocData<TransactionRecord>)
     )
   };
 }

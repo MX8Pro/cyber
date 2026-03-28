@@ -4,7 +4,6 @@ import {
   OFFLINE_BROWSER_ID_KEY,
   OFFLINE_SESSION_KEY,
   clearOfflineWorkerSession,
-  deleteTrustedWorkerDevice,
   getOfflineMeta,
   getOfflineWorkerSession,
   getTrustedWorkerDevice,
@@ -14,7 +13,6 @@ import {
   putTrustedWorkerDevice
 } from "@/offline/db";
 import { emitWorkerAuthEvent } from "@/offline/events";
-import { decryptPayloadWithPassword, encryptPayloadWithPassword } from "@/lib/utils/offline-crypto";
 import { createRuntimeId } from "@/lib/utils/runtime-id";
 import type {
   OfflineWorkerSession,
@@ -23,8 +21,17 @@ import type {
   WorkerListItem
 } from "@/types";
 
-function isExpired(isoDate: string) {
-  return new Date(isoDate).getTime() <= Date.now();
+function pickLatestTrustedRecords(records: TrustedWorkerDeviceRecord[]) {
+  const byWorker = new Map<string, TrustedWorkerDeviceRecord>();
+
+  for (const record of records) {
+    const current = byWorker.get(record.workerId);
+    if (!current || new Date(record.lastActivatedAt).getTime() > new Date(current.lastActivatedAt).getTime()) {
+      byWorker.set(record.workerId, record);
+    }
+  }
+
+  return Array.from(byWorker.values());
 }
 
 export async function getOrCreateBrowserId() {
@@ -38,12 +45,53 @@ export async function getOrCreateBrowserId() {
   return browserId;
 }
 
+function buildOfflineSession(input: {
+  workerId: string;
+  displayName: string;
+  color?: string;
+  icon?: string;
+  payload: TrustedWorkerDevicePayload;
+  activatedAt: string;
+}): OfflineWorkerSession {
+  return {
+    id: OFFLINE_SESSION_KEY,
+    workerId: input.workerId,
+    displayName: input.displayName,
+    color: input.color,
+    icon: input.icon,
+    deviceId: input.payload.deviceId,
+    browserId: input.payload.browserId,
+    deviceSecret: input.payload.deviceSecret,
+    activatedAt: input.activatedAt,
+    expiresAt: input.payload.expiresAt,
+    lastUnlockedAt: new Date().toISOString()
+  };
+}
+
+export async function activateOfflineSessionFromTrustedDevice(input: {
+  worker: WorkerListItem;
+  payload: TrustedWorkerDevicePayload;
+  activatedAt?: string;
+}) {
+  const session = buildOfflineSession({
+    workerId: input.worker.id,
+    displayName: input.worker.displayName,
+    color: input.worker.color,
+    icon: input.worker.icon,
+    payload: input.payload,
+    activatedAt: input.activatedAt ?? new Date().toISOString()
+  });
+
+  await putOfflineWorkerSession(session);
+  emitWorkerAuthEvent(input.worker.id);
+  return session;
+}
+
 export async function registerTrustedWorkerDevice(input: {
   worker: WorkerListItem;
   payload: TrustedWorkerDevicePayload;
   password: string;
 }) {
-  const encryptedPayload = await encryptPayloadWithPassword(input.payload, input.password);
   const localRecord: TrustedWorkerDeviceRecord = {
     id: input.payload.deviceId,
     workerId: input.worker.id,
@@ -53,7 +101,8 @@ export async function registerTrustedWorkerDevice(input: {
     browserId: input.payload.browserId,
     expiresAt: input.payload.expiresAt,
     lastActivatedAt: new Date().toISOString(),
-    encryptedPayload
+    plainPayload: input.payload,
+    plainPassword: input.password
   };
 
   await putTrustedWorkerDevice(localRecord);
@@ -61,22 +110,11 @@ export async function registerTrustedWorkerDevice(input: {
 }
 
 export async function listOfflineTrustedWorkers() {
-  const records = await listTrustedWorkerDevices();
-  const validRecords: TrustedWorkerDeviceRecord[] = [];
-
-  for (const record of records) {
-    if (isExpired(record.expiresAt)) {
-      await deleteTrustedWorkerDevice(record.id);
-      continue;
-    }
-    validRecords.push(record);
-  }
-
-  return validRecords;
+  return listTrustedWorkerDevices();
 }
 
 export async function getOfflineTrustedWorkerList(): Promise<WorkerListItem[]> {
-  const records = await listOfflineTrustedWorkers();
+  const records = pickLatestTrustedRecords(await listOfflineTrustedWorkers());
   return records.map((record) => ({
     id: record.workerId,
     displayName: record.displayName,
@@ -85,31 +123,30 @@ export async function getOfflineTrustedWorkerList(): Promise<WorkerListItem[]> {
   }));
 }
 
-export async function unlockOfflineWorkerSession(workerId: string, password: string) {
-  const trustedDevices = await listOfflineTrustedWorkers();
-  const record = trustedDevices.find((item) => item.workerId === workerId);
-  if (!record) {
-    throw new Error("هذا العامل غير مفعّل للعمل بدون إنترنت على هذا الجهاز.");
+export async function unlockOfflineWorkerSession(workerId: string, _password: string) {
+  const trustedDevices = (await listOfflineTrustedWorkers())
+    .filter((item) => item.workerId === workerId)
+    .sort((left, right) => new Date(right.lastActivatedAt).getTime() - new Date(left.lastActivatedAt).getTime());
+
+  if (!trustedDevices.length) {
+    throw new Error("هذا العامل غير مفعّل محليًا على هذا المتصفح. ادخل مرة واحدة بالإنترنت فقط.");
   }
 
-  const payload = await decryptPayloadWithPassword<TrustedWorkerDevicePayload>(record.encryptedPayload, password).catch(() => null);
-  if (!payload || payload.workerId !== workerId || payload.deviceId !== record.id || isExpired(payload.expiresAt)) {
-    throw new Error("تعذر فتح الدخول المحلي. تحقق من كلمة السر أو أعد التفعيل بالإنترنت.");
+  const record = trustedDevices[0];
+  const payload = record.plainPayload;
+
+  if (!payload || payload.workerId !== workerId || payload.deviceId !== record.id) {
+    throw new Error("بيانات التفعيل المحلي غير مكتملة على هذا المتصفح. ادخل مرة واحدة بالإنترنت لإعادة حفظها.");
   }
 
-  const session: OfflineWorkerSession = {
-    id: OFFLINE_SESSION_KEY,
+  const session = buildOfflineSession({
     workerId,
     displayName: record.displayName,
     color: record.color,
     icon: record.icon,
-    deviceId: payload.deviceId,
-    browserId: payload.browserId,
-    deviceSecret: payload.deviceSecret,
-    activatedAt: record.lastActivatedAt,
-    expiresAt: payload.expiresAt,
-    lastUnlockedAt: new Date().toISOString()
-  };
+    payload,
+    activatedAt: record.lastActivatedAt
+  });
 
   await putOfflineWorkerSession(session);
   emitWorkerAuthEvent(workerId);
@@ -122,13 +159,8 @@ export async function getCurrentOfflineWorkerSession() {
     return null;
   }
 
-  if (isExpired(session.expiresAt)) {
-    await clearCurrentOfflineWorkerSession();
-    return null;
-  }
-
   const deviceRecord = await getTrustedWorkerDevice(session.deviceId);
-  if (!deviceRecord || deviceRecord.workerId !== session.workerId || isExpired(deviceRecord.expiresAt)) {
+  if (!deviceRecord || deviceRecord.workerId !== session.workerId) {
     await clearCurrentOfflineWorkerSession();
     return null;
   }

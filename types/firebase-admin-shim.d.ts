@@ -13,6 +13,11 @@ declare module "firebase-admin/auth" {
     verifySessionCookie(cookie: string, checkRevoked?: boolean): Promise<Record<string, any>>;
     verifyIdToken(idToken: string): Promise<Record<string, any>>;
     updateUser(uid: string, input: Record<string, unknown>): Promise<void>;
+    deleteUser(uid: string): Promise<void>;
+    listUsers(
+      maxResults?: number,
+      pageToken?: string
+    ): Promise<{ users: Array<{ uid: string }>; pageToken?: string }>;
     revokeRefreshTokens(uid: string): Promise<void>;
   };
 }

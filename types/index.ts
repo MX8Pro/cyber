@@ -47,6 +47,7 @@ export interface WorkerRecord {
   icon?: string;
   phone?: string;
   notes?: string;
+  creditBalance?: number;
   deletedAt?: string | null;
   lastLoginAt?: string | null;
   lastShiftAt?: string | null;
@@ -67,6 +68,7 @@ export interface WorkerSessionCard {
   displayName: string;
   color?: string;
   icon?: string;
+  creditBalance?: number;
 }
 
 export interface TrustedWorkerDeviceServerRecord {
@@ -107,7 +109,9 @@ export interface TrustedWorkerDeviceRecord {
   browserId: string;
   expiresAt: string;
   lastActivatedAt: string;
-  encryptedPayload: EncryptedPayloadEnvelope;
+  encryptedPayload?: EncryptedPayloadEnvelope;
+  plainPayload?: TrustedWorkerDevicePayload;
+  plainPassword?: string;
 }
 
 export interface ShiftScheduleSettings {

@@ -25,8 +25,8 @@ export default async function WorkerLoginPage() {
   }
 
   return (
-    <div className="mesh-bg flex min-h-screen items-center justify-center px-4 py-8">
-      <div className="grid w-full max-w-6xl gap-6 lg:grid-cols-[1.02fr_0.98fr]">
+    <div className="mesh-bg flex min-h-screen items-start justify-center px-4 py-6 sm:py-8 lg:items-center">
+      <div className="grid w-full max-w-7xl gap-6 lg:grid-cols-[1.02fr_0.98fr]">
         <section className="glass-panel rise-in relative overflow-hidden p-6 text-slate-950">
           <div className="absolute -left-12 top-10 h-40 w-40 rounded-full bg-brand/10 blur-3xl" />
           <div className="absolute bottom-0 right-0 h-40 w-40 rounded-full bg-sky-200/30 blur-3xl" />
@@ -35,7 +35,7 @@ export default async function WorkerLoginPage() {
             <span className="inline-flex rounded-full bg-brand/10 px-3 py-1 text-sm font-semibold text-brand">دخول العمال</span>
 
             <div className="space-y-3">
-              <h1 className="max-w-xl text-4xl font-bold leading-tight text-slate-950">واجهة بسيطة وواضحة للعمل اليومي داخل المحل</h1>
+              <h1 className="max-w-xl text-3xl font-bold leading-tight text-slate-950 sm:text-4xl">واجهة بسيطة وواضحة للعمل اليومي داخل المحل</h1>
               <p className="max-w-2xl text-base leading-8 text-slate-600">
                 اختر اسمك، أدخل كلمة السر، وابدأ العمل مباشرة. بعد الدخول يمكن متابعة المناوبة والعمليات حتى أثناء انقطاع الإنترنت، ثم تُرفع البيانات إلى Firebase تلقائيًا عند عودة الاتصال.
               </p>

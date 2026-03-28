@@ -5,6 +5,7 @@ import { getAppSettings, getTelegramBotToken } from "@/lib/server/repositories";
 import { writeAuditLog } from "@/lib/server/audit";
 import { headers } from "next/headers";
 import { assertRateLimit } from "@/lib/server/rate-limit";
+import { buildTelegramNotification } from "@/lib/server/telegram";
 
 export async function POST(request: Request) {
   try {
@@ -26,7 +27,12 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         chat_id: settings.telegram.chatId,
-        text: input.message
+        text: buildTelegramNotification({
+          title: "رسالة اختبار من لوحة الإدارة",
+          level: "info",
+          lines: [input.message]
+        }),
+        parse_mode: "MarkdownV2"
       }),
       cache: "no-store"
     });

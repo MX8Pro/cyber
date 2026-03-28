@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { AlertTriangle, Clock3, WalletCards } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -46,13 +46,10 @@ export function WorkerDashboardPanel({
   const shopBalance = activeShift ? balances.shopCash : 0;
   const flexyBalance = activeShift ? balances.flexyCash : 0;
 
-  const sourceLabel = useMemo(() => {
-    if (source === "cache") {
-      return "أنت ترى آخر نسخة محفوظة محليًا إلى حين عودة الاتصال.";
-    }
-
-    return "الواجهة جاهزة للعمل اليومي مع تحديث سريع وواضح.";
-  }, [source]);
+  const sourceLabel =
+    source === "cache"
+      ? "أنت ترى آخر نسخة محفوظة محليًا إلى حين عودة الاتصال."
+      : "الواجهة جاهزة للعمل اليومي مع تحديث سريع وواضح.";
 
   return (
     <div className="space-y-4">
@@ -105,7 +102,7 @@ export function WorkerDashboardPanel({
             </span>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Metric title="أموال المحل" value={formatCurrency(openingContext.handoverShopCash ?? 0)} />
             <Metric title="أموال الفليكسي" value={formatCurrency(openingContext.handoverFlexyCash ?? 0)} />
           </div>
@@ -119,12 +116,13 @@ export function WorkerDashboardPanel({
         </section>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Metric title="أموال المحل" value={formatCurrency(shopBalance)} />
         <Metric title="أموال الفليكسي" value={formatCurrency(flexyBalance)} />
+        <Metric title="الكريديت" value={formatCurrency(snapshot.worker.creditBalance ?? 0)} />
       </div>
 
-      <div className="grid gap-3">
+      <div className="grid gap-3 lg:grid-cols-3">
         <ActionLink href="/worker/shifts/open" variant="primary">
           استلام المناوبة
         </ActionLink>
@@ -146,7 +144,7 @@ export function WorkerDashboardPanel({
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-900">آخر العمليات</h2>
-            <p className="text-sm text-slate-500">آخر 5 عمليات فقط لسهولة المتابعة</p>
+            <p className="text-sm text-slate-500">آخر 20 عملية لسهولة المتابعة والمراجعة</p>
           </div>
           <div className="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600">
             <Clock3 className="me-1 inline-flex h-3.5 w-3.5" />

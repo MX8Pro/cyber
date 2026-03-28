@@ -7,7 +7,8 @@ export const workerCreateSchema = z.object({
   color: z.string().max(20).optional(),
   icon: z.string().max(40).optional(),
   phone: z.string().max(30).optional(),
-  notes: z.string().max(500).optional()
+  notes: z.string().max(500).optional(),
+  creditBalance: z.coerce.number().min(0).max(1_000_000_000).optional()
 });
 
 export const workerUpdateSchema = z.object({
@@ -17,6 +18,7 @@ export const workerUpdateSchema = z.object({
   icon: z.string().max(40).optional(),
   phone: z.string().max(30).optional(),
   notes: z.string().max(500).optional(),
+  creditBalance: z.coerce.number().min(0).max(1_000_000_000).optional(),
   isActive: z.boolean().optional()
 });
 

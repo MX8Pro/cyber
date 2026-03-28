@@ -1,6 +1,8 @@
 import { getAppSettings, getTelegramBotToken } from "@/lib/server/repositories";
 import type { TelegramNotificationType } from "@/types";
 
+const APP_NAME = "إدارة خزينة المناوبات";
+
 function escapeTelegramMarkdown(value: string) {
   return value.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
 }
@@ -50,4 +52,23 @@ export function formatTelegramMoney(amount: number) {
 
 export function formatTelegramMessage(lines: string[]) {
   return lines.map((line) => escapeTelegramMarkdown(line)).join("\n");
+}
+
+
+export function buildTelegramNotification(input: {
+  title: string;
+  lines: string[];
+  level?: "info" | "success" | "warning" | "error";
+}) {
+  const icon =
+    input.level === "success" ? "✅" : input.level === "warning" ? "⚠️" : input.level === "error" ? "🚨" : "ℹ️";
+
+  const lines = [
+    `${icon} ${input.title}`,
+    ...input.lines.filter(Boolean),
+    `الوقت: ${new Date().toLocaleString("fr-FR")}`,
+    `النظام: ${APP_NAME}`
+  ];
+
+  return formatTelegramMessage(lines);
 }
